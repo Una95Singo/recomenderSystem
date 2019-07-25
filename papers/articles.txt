@@ -1,0 +1,7 @@
+Here are some interesting articles on recomender systems.
+
+1. Recomender Systems - Rankings and Classifications https://medium.com/@cfpinela/recommender-systems-ranking-and-classifications-3abae71d6fbf
+
+2. Recomender Systesm - User-Based and item-Based Collaboration filtering. https://medium.com/@cfpinela/recommender-systems-user-based-and-item-based-collaborative-filtering-5d5f375a127f
+
+3. 
