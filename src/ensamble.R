@@ -6,4 +6,5 @@ source('src/itemBased.R')
 source('src/userBased.R')
 source('src/matrixDecomp.R')
 
-load('data/Processed/ratings.RData')
+load('data/Processed/recommender.RData')
+set.seed(1)

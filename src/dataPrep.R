@@ -2,6 +2,7 @@
 # Una Singo
 # 25 July 2019
 library(tidyverse)
+set.seed(1)
 
 movies <- read.csv("data/Raw/ml-20m/movies.csv") 
 ratings <-  read.csv("data/Raw/ml-20m/ratings.csv")
@@ -19,8 +20,6 @@ viewedMoviesMatrix <- ratings%>%
   complete(userId, movieId) %>% 
   mutate(seen = ifelse(is.na(rating), 0, 1)) %>% 
   select(userId, movieId, seen) %>% 
-  spread(key = title, value = seen)
+  spread(key = movieId, value = seen)
 
-head(table(ratings_red$userId, ratings_red$movieId)) # test 
-
-save(ratings, viewedMoviesMatrix, file = "output/recommender.RData")
+save(ratings, viewedMoviesMatrix, file = "data/Processed/recommender.RData")
