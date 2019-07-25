@@ -10,4 +10,4 @@ ratings <- left_join(movies, ratings) #j
 ratings <- subset(ratings, userId<=6000)
 rm(movies)
 
-save.image('data/Raw/ratings.RData')
+save.image('data/Processed/ratings.RData')
