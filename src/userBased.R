@@ -18,14 +18,48 @@ cosineSimilarityMatrix = function(matrix){
 }
 
 
+subset = sample(x = 1:10000,size =1000)
+
 viewedMoviesMatrix = ratings%>% 
   complete(userId, movieId) %>% 
   select(userId, movieId, rating) %>% 
   spread(key = movieId, value = rating)
 
+subset= 1:1000
+centeredRatings =viewedMoviesMatrix[subset,-1] - rowMeans(viewedMoviesMatrix[subset,-1], na.rm=T)
+centeredRatings[is.na(centeredRatings)] = 0
 
-sub = viewedMoviesMatrix[1:20,-1]
-sub = sub[,1:100]
+counter = function(vect){
+  length(vect[which(!is.na(vect))])
+}
+
+sum(apply(viewedMoviesMatrix, 1, counter)==2)
+
+predict = function(usr, mov, neighbourhood){
+  # collect the users ratings
+  ratings_list = centeredRatings[-usr,mov]
+  # data store for similarities 
+  sims <- c()
+  # iteratively compute similarities
+  for(j in 1:nrow(centeredRatings))
+  {
+    if(j!= 1)
+    {
+      sims <- c(sims, cosine_sim(as.numeric(centeredRatings[usr,]), as.numeric(centeredRatings[j,])))
+    }
+  }
+  # Most similarities are so we need to deal with them by removing them. 
+  temp = cbind(sims,ratings_list)
+  temp = temp[!is.na(temp[,1]),]
+  temp = temp[order(temp[,1],decreasing = T),]
+  # compute predictions
+  prediction = sum(temp[1:neighbourhood,1]* temp[1:neighbourhood,2])  / sum(temp[1:neighbourhood,1])
+  return(prediction)
+}
+
+rowMean=rowMeans(viewedMoviesMatrix[,-1])
+sub = viewedMoviesMatrix[1:600,]
+sub = sub[,]
 
 non_NA_indices= which(!is.na(sub),arr.ind = T) 
 
@@ -52,6 +86,8 @@ for (i in non_NA_indices_sample){
       sims <- c(sims, cosine_sim(as.numeric(masked_duplicate[1,]), as.numeric(masked_duplicate[j,] ) ))
     }
   }
+  sims[is.nan(sims)] = 0 # mask nans with zero
+  
   # calculate predicted rating
   #function to predict rating 
   #a = vector of seen movie
@@ -62,6 +98,11 @@ for (i in non_NA_indices_sample){
 }
 
 
+RMSE = (true_rating - predicted_rating)^2
+paste('-----Prediction RMSE-----')
+RMSE = sqrt(sum(RMSE)/length(RMSE))
+predicted_rating
+paste(RMSE)
 ---------------
 
 predictRating <- function(a,b) {
