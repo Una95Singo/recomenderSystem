@@ -38,8 +38,9 @@ for (i in non_NA_indices_sample){
   masked_row = non_NA_indices[i,1] # position of non NA to be masked
   masked_col = non_NA_indices[i,2] # position of non NA to be masked
   masked_duplicate = sub # duplicate the subset matrix followed by masking
-  true_rating =   c(true_rating,masked_duplicate[masked_row, masked_col] )# store true rating
+  true_rating =   c(as.numeric(true_rating,masked_duplicate[masked_row, masked_col] ))# store true rating
   masked_duplicate[masked_row, masked_col] = NA
+  masked_duplicate[is.na(masked_duplicate)] = 0
   # calculate similarity matrix of subset
   sims <- c()
   
@@ -47,29 +48,24 @@ for (i in non_NA_indices_sample){
   {
     if(j!= 1)
     {
-      sims <- c(sims, cosine_sim(masked_duplicate[1,], masked_duplicate[j,] ) )
+      sims <- c(sims, cosine_sim(as.numeric(masked_duplicate[1,]), as.numeric(masked_duplicate[j,] ) ))
     }
   }
-  
-
   # calculate predicted rating
-  #predicted_rating = c(predicted_rating)
-  
   #function to predict rating 
   #a = vector of seen movie
   #b - vector of user similiarities
-  predictRating <- function(a,b) {
-    predictRating <- crossprod(a,b)/sum(b)
-  }
+  predicted_rating = c(predicted_rating ,predictRating(as.vector(masked_duplicate[-masked_row,masked_col]), sims) )
   # return prediction and true value
   #iterate to the next.
-  
 }
 
 
+predictRating <- function(a,b) {
+  predictRating <- crossprod(a,b)/sum(b)
+}
 
-
-
+predictRating(as.vector(masked_duplicate[-masked_row,masked_col]), as.vector(sims))
 
 
 userBased = function(matrix, ...){
