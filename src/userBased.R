@@ -51,8 +51,16 @@ for (i in non_NA_indices_sample){
     }
   }
   
+
   # calculate predicted rating
-  predicted_rating = c(predicted_rating)
+  #predicted_rating = c(predicted_rating)
+  
+  #function to predict rating 
+  #a = vector of seen movie
+  #b - vector of user similiarities
+  predictRating <- function(a,b) {
+    predictRating <- crossprod(a,b)/sum(b)
+  }
   # return prediction and true value
   #iterate to the next.
   
