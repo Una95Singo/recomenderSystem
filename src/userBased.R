@@ -41,11 +41,21 @@ for (i in non_NA_indices_sample){
   true_rating =   c(true_rating,masked_duplicate[masked_row, masked_col] )# store true rating
   masked_duplicate[masked_row, masked_col] = NA
   # calculate similarity matrix of subset
+  sims <- c()
+  
+  for(j in 1:nrow(masked_duplicate))
+  {
+    if(j!= 1)
+    {
+      sims <- c(sims, cosine_sim(masked_duplicate[1,], masked_duplicate[j,] ) )
+    }
+  }
   
   # calculate predicted rating
   predicted_rating = c(predicted_rating)
   # return prediction and true value
   #iterate to the next.
+  
 }
 
 
