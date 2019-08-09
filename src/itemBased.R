@@ -27,8 +27,9 @@ cosine_sim <- function(a, b){
   crossprod(a, b) / sqrt(crossprod(a) * crossprod(b))
 }
 
-?complete
-head(ratings)
-head(viewedMoviesMatrix) 
-head(viewed_movies)
-head(ratings_red)
+
+#function to predict rating 
+predictRating <- function(a,b) {
+  predictRating <- crossprod(a,b)/b
+}
+
