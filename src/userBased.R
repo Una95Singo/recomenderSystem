@@ -25,12 +25,13 @@ viewedMoviesMatrix = ratings%>%
 
 
 sub = viewedMoviesMatrix[1:20,-1]
+sub = sub[,1:100]
 
 non_NA_indices= which(!is.na(sub),arr.ind = T) 
 
 # mask the value
-N = 3
-non_NA_indices_sample= sample(non_NA_indices,N)
+N = 10
+non_NA_indices_sample= sample(nrow(non_NA_indices),size =N )
 true_rating = c()
 predicted_rating = c()
 
@@ -38,7 +39,7 @@ for (i in non_NA_indices_sample){
   masked_row = non_NA_indices[i,1] # position of non NA to be masked
   masked_col = non_NA_indices[i,2] # position of non NA to be masked
   masked_duplicate = sub # duplicate the subset matrix followed by masking
-  true_rating =   c(as.numeric(true_rating,masked_duplicate[masked_row, masked_col] ))# store true rating
+  true_rating =   c(true_rating,as.numeric(masked_duplicate[masked_row, masked_col] ))# store true rating
   masked_duplicate[masked_row, masked_col] = NA
   masked_duplicate[is.na(masked_duplicate)] = 0
   # calculate similarity matrix of subset
@@ -55,14 +56,16 @@ for (i in non_NA_indices_sample){
   #function to predict rating 
   #a = vector of seen movie
   #b - vector of user similiarities
-  predicted_rating = c(predicted_rating ,predictRating(as.vector(masked_duplicate[-masked_row,masked_col]), sims) )
+  predicted_rating = c(predicted_rating ,predictRating(unlist(masked_duplicate[-masked_row,masked_col]), sims))
   # return prediction and true value
   #iterate to the next.
 }
 
 
+---------------
+
 predictRating <- function(a,b) {
-  predictRating <- crossprod(a,b)/sum(b)
+  return( crossprod(a,b)/sum(b))
 }
 
 predictRating(as.vector(masked_duplicate[-masked_row,masked_col]), as.vector(sims))
