@@ -1,5 +1,7 @@
 # user based recomender system
 # Una Singo 24 July 2019
+install.packages("coop")
+library(coop)
 library(tidyverse)
 load('data/Processed/recommender.RData')
 #load('data/Processed/userSimilarity.RData') Don't load this for now.
@@ -23,7 +25,7 @@ viewedMoviesMatrix = ratings%>% filter(movieId<5000)%>%
   spread(key = movieId, value = rating)
 
 ####################################################################
-subset = 1:10
+subset = 1:1000
 
 centeredRatings =viewedMoviesMatrix[subset,-1] - rowMeans(viewedMoviesMatrix[subset,-1], na.rm=T)
 trueRatings = viewedMoviesMatrix[subset,-1]
@@ -34,18 +36,18 @@ predict = function(usr, mov, neighbourhood){
   # collect the users ratings
   #ratings_list = trueRatings[-usr,mov]
   ratings_list = trueRatings[,mov]
-  # data store for similarities 
-  sims <- c()
-  # iteratively compute similarities
+  
+  # returns a similarity vector 
+  similarity = function(x){
+    return(cosine(as.numeric(temp_masked[usr,]), as.numeric(x))  )
+  }
+
   
   # mask user's rating
   temp_masked = centeredRatings
   temp_masked[usr,mov] = 0
   
-  for(j in 1:nrow(centeredRatings))
-  {
-      sims <- c(sims, cosine_sim(as.numeric(temp_masked[usr,]), as.numeric(temp_masked[j,])))
-  }
+  sims = apply(temp_masked,1, similarity)
   # Most similarities are so we need to deal with them by removing them. 
   temp = cbind(sims,ratings_list)
   temp = temp[-usr,]
