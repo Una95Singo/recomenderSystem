@@ -19,7 +19,7 @@ cosine_sim <- function(a, b){crossprod(a, b) / sqrt(crossprod(a) * crossprod(b))
 #  return( dotProducts * diagCrossProducts )  # return similarity matrix. i-th similarity to j-th object
 #}
 
-viewedMoviesMatrix = ratings%>% filter(movieId<5000)%>% 
+viewedMoviesMatrix = ratings%>% 
   complete(userId, movieId) %>% 
   select(userId, movieId, rating) %>% 
   spread(key = movieId, value = rating)
