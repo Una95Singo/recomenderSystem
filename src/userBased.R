@@ -25,16 +25,15 @@ viewedMoviesMatrix = ratings%>% filter(movieId<5000)%>%
   spread(key = movieId, value = rating)
 
 ####################################################################
-subset = 1:1000
+subset = 1:100
 
 centeredRatings =viewedMoviesMatrix[subset,-1] - rowMeans(viewedMoviesMatrix[subset,-1], na.rm=T)
 trueRatings = viewedMoviesMatrix[subset,-1]
 centeredRatings[is.na(centeredRatings)] = 0
 
 
-predict = function(usr, mov, neighbourhood){
+predict = function(usr, mov, neighbourhood, trueRatings, centeredRatings){
   # collect the users ratings
-  #ratings_list = trueRatings[-usr,mov]
   ratings_list = trueRatings[,mov]
   
   # returns a similarity vector 
