@@ -49,6 +49,12 @@ predict_UB = function(usr, mov, neighbourhood, trueRatings){
   #ratings_list = trueRatings[-usr,mov]
   ratings_list = trueRatings[,mov]
   # data store for similarities 
+  
+  # returns a similarity vector 
+  similarity = function(x){
+    return(cosine(as.numeric(temp_masked[usr,]), as.numeric(x))  )
+  }
+  
   sims <- c()
   # iteratively compute similarities
   
@@ -56,10 +62,8 @@ predict_UB = function(usr, mov, neighbourhood, trueRatings){
   temp_masked = centeredRatings
   temp_masked[usr,mov] = 0
   
-  for(j in 1:nrow(centeredRatings))
-  {
-      sims <- c(sims, cosine_sim(as.numeric(temp_masked[usr,]), as.numeric(temp_masked[j,])))
-  }
+  
+  sims = apply(temp_masked,1, similarity)
   # Most similarities are so we need to deal with them by removing them. 
   temp = cbind(sims,ratings_list)
   temp = temp[-usr,]
