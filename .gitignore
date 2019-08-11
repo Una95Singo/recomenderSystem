@@ -4,3 +4,5 @@
 .Ruserdata
 userSimilarity.RData
 **/Data/Raw
+images/
+.DS_Store
