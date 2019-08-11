@@ -30,11 +30,12 @@ rat_mat1 <- rat_mat[,2:ncol(rat_mat)]
 rownames(rat_mat1) <- seq(1:nrow(rat_mat))
 
 movie_subset = sample(1:13000,5000, replace = FALSE)
-
-viewedMoviesMatrix = ratings%>%
+ratings1 <- ratings[ratings$movieId<1050 , ]
+viewedMoviesMatrix = ratings1%>%
   complete(userId, movieId) %>%
   select(userId, movieId, rating) %>%
   spread(key = movieId, value = rating)
+
 
 
 ####################################################################
@@ -79,9 +80,15 @@ predict_UB = function(usr, mov, neighbourhood, trueRatings, centeredRatings){
   
   # return prediction and true rating if it exists
   if ( is.na(trueRatings[usr,mov])){
+    if(is.nan(prediction)   ){ 
+      return(list('prediction' = mean(temp[,2]), 'trueRating' = NA))
+    }
     return(list('prediction' = prediction, 'trueRating' = NA))
   }
   else{
+    if(is.nan(prediction)   ){ 
+      return(list('prediction' = mean(temp[,2]), 'trueRating' = NA))
+    }
     return(list('prediction' = prediction, 'trueRating' = as.numeric(trueRatings[usr,mov])))
   }
 }
@@ -133,9 +140,15 @@ predict_IB = function(usr, mov, neighbourhood, trueRatings, centeredRatings){
   
   # return prediction and true rating if it exists
   if ( is.na(trueRatings[mov,usr])){
+    if(is.nan(prediction)   ){ 
+      return(list('prediction' = mean(temp[,2]), 'trueRating' = NA))
+    }
     return(list('prediction' = prediction, 'trueRating' = NA))
   }
   else{
+    if(is.nan(prediction)   ){ 
+      return(list('prediction' = mean(temp[,2]), 'trueRating' = NA))
+    }
     return(list('prediction' = prediction, 'trueRating' = as.numeric(trueRatings[mov,usr])))
   }
 }
@@ -175,20 +188,19 @@ train_accuracy
 #####################################################
 
 
-no_pred <- 8
-steps <- c(100, 500, 1000, 1500, 2000, 3000, 4000, 5000)
+no_pred <- 5
+steps <- c(100, 500, 1000, 1500, 2000)
 max_iters <- c(100)
   
 #Remove row and column ids
 #rownames(rat_mat1) <- seq(1:nrow(rat_mat))
-rat_matB <- rat_matA[,2:ncol(rat_mat)]
-preds1 = vector("list", 8)
-rmses1 <- vector("logical", 8)
+rat_matB <- viewedMoviesMatrix[,-1]
+preds1 = vector("list", 5)
+rmses1 <- vector("logical", 5)
 steps <- c(100, 500, 1000, 1500, 2000)
-steps2 <- c()
-for(i in 1:8)
+for(i in 1:)
 {
-  rat_mat1 <- viewedMoviesMatrix[1:steps[i], ]#For testing purposes
+  rat_mat1 <- as.matrix(viewedMoviesMatrix[1:steps[i], -1])#For testing purposes
   
   init = list(
     H0 = matrix(1, nrow = 1, ncol = ncol(rat_mat1)),
@@ -208,8 +220,8 @@ for(i in 1:8)
   # results
   rat_pred <- decomp$W %*% decomp$H  # includes bias terms in it (see ?nnmf)
   mse = tail(decomp$mse, n = 1)
-  preds[[i]] = rat_pred
-  rmses[i] = sqrt(mse)
+  preds1[[i]] = rat_pred
+  rmses1[i] = sqrt(mse)
   
 }
 
@@ -220,11 +232,14 @@ for(i in 1:8)
 ######################################################
 ################################
 #Prediction Errors
-rmse_UB <- vector("logical", 8)
-rmse_IB <- vector("logical", 8)
-rmse_ens <- vector("logical", 8)
+rmse_UB <- vector("logical", 5)
+rmse_IB <- vector("logical", 5)
+rmse_ens <- vector("logical", 5)
 set.seed(1)
-
+IB_pred_mat <- matrix(0, 10, 5)
+UB_pred_mat <- matrix(0, 10, 5)
+IB_actual_mat <- matrix(0, 10, 5)
+UB_actual_mat <- matrix(0, 10, 5)
 no_predictions = 10
 no_pred <- 5
 steps <- c(100, 500, 1000, 1500, 2000)
@@ -254,12 +269,11 @@ for(j in 1:no_pred)
     samp_rat = sample(1:nrow(rated), 1)
     user = as.numeric(rated[samp_rat,][1])
     movie = as.numeric(rated[samp_rat,][2])
-    
     ub_preds <- predict_UB(usr = user, mov = movie , neighbourhood = steps[j] , trueRatings = trueRatings, centeredRatings = centeredRatings)
     ub_prediction <- ub_preds$prediction
-    ub_actual <- ub_preds$trueRating
+    ub_actual <- viewedMoviesMatrix[user, movie + 1]
+    UB_actual_mat[i,j] <- as.numeric(ub_actual)
 
-    
     ib_preds <- predict_IB(usr = user, mov = movie , neighbourhood = steps[j] , trueRatings = trueRatings_IB, centeredRatings = centeredRatings_IB)
     ib_prediction <- ib_preds$prediction
     if(is.nan(ib_prediction) || is.nan(ub_prediction))
@@ -268,23 +282,36 @@ for(j in 1:no_pred)
       no_users = no_users - 1
       next
     }
-
+    IB_pred_mat[i,j] <- ib_prediction
+    UB_pred_mat[i,j] <- ub_prediction
     sq_error_UB <-  sq_error_UB + (ub_prediction - ub_actual)^2
     sq_error_IB <-  sq_error_IB + (ib_prediction - ub_actual)^2
     
-    MD_prediction <- preds[[j]] [user, movie]
+    MD_prediction <- preds1[[j]] [user, movie]
     
-    ens_prediction <- (ub_prediction  + MD_prediction) /2
+    ens_prediction <- (ub_prediction  + ib_prediction + MD_prediction) /2
     sq_error_ens <-  sq_error_ens + (ens_prediction - ub_actual)^2
     
     
   }
-  
+  print(IB_pred_mat[,j])
+  print(UB_pred_mat[,j])
+  print(UB_actual_mat[,j])
   rmse_UB[j] <- sqrt(sq_error_UB/no_users)
   rmse_IB[j] <- sqrt(sq_error_IB/no_users)
   rmse_ens[j] <- sqrt(sq_error_ens / no_users)
   print(paste("Calculated RMSEs", rmse_ens[j]) )
   
 }
+
+
+plot(steps, rmses1, xlab = "Number of users", ylab = "RMSE", main = "RMSE by Users", type = "l")
+
+plot(steps, rmse_UB , xlab = "Number of users", ylab = "RMSE", main = "RMSE by Users", type = "l")
+
+
+plot(steps, rmse_IB, xlab = "Number of users", ylab = "RMSE", main = "RMSE by Users", type = "l")
+
+plot(steps, rmse_ens, xlab = "Number of users", ylab = "RMSE", main = "RMSE by Users", type = "l")
 
 
