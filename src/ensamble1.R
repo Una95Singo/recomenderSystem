@@ -68,9 +68,12 @@ predict_UB = function(usr, mov, neighbourhood, trueRatings, centeredRatings){
   temp = temp[order(temp[,1],decreasing = T),]
   temp = temp[!is.na(temp[,2]),1:2] 
   
-  
+  # if temp only has one row.
+  if (is.null(nrow(temp))){
+    prediction = as.numeric(temp[1])* as.numeric(temp[2])
+  }
   # compute predictions based on neighbourhood. If neighbours are less then just use all the data. 
-  if (nrow(temp) < neighbourhood) {
+  else if (nrow(temp) < neighbourhood) {
     prediction= sum(temp[,1]*temp[,2])/sum(temp[,1])
   }
   else{
