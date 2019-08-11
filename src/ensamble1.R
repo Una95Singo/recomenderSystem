@@ -5,6 +5,7 @@ library(tidyr)
 library(NNLM)
 library(scales)
 load('data/Processed/recommender.RData')
+
 #load('data/Processed/userSimilarity.RData') Don't load this for now.
 set.seed(1)
 
@@ -28,27 +29,16 @@ rat_mat <- rat_matA[1:5000, ]#For testing purposes
 rat_mat1 <- rat_mat[,2:ncol(rat_mat)]
 rownames(rat_mat1) <- seq(1:nrow(rat_mat))
 
-# viewedMoviesMatrix = ratings%>% 
-#   complete(userId, movieId) %>% 
-#   select(userId, movieId, rating) %>% 
-#   spread(key = movieId, value = rating)
+movie_subset = sample(1:13000,5000, replace = FALSE)
 
-viewedMoviesMatrix <- rat_matA
-
-viewedMoviesMatrix = ratings%>% 
-  complete(userId, movieId) %>% 
-  select(userId, movieId, rating) %>% 
+viewedMoviesMatrix = ratings%>%
+  complete(userId, movieId) %>%
+  select(userId, movieId, rating) %>%
   spread(key = movieId, value = rating)
 
-# tranpose to make it item based
-viewedMoviesMatrix_IB = t(viewedMoviesMatrix[,-1])
-
-centeredRatings_IB =viewedMoviesMatrix_IB[, subset] - rowMeans(viewedMoviesMatrix_IB[,subset], na.rm=T)
-trueRatings_IB = viewedMoviesMatrix_IB[,subset]
-centeredRatings_IB[is.na(centeredRatings_IB)] = 0
 
 ####################################################################
-
+##############USER BASED PREDICTIONS################################
 mov = 8429
 usr = 11
 neighbourhood = 7
@@ -96,52 +86,58 @@ predict_UB = function(usr, mov, neighbourhood, trueRatings, centeredRatings){
   }
 }
 
+#test ub function
 predict_UB(usr = 11, mov = 8429 , neighbourhood = 8 , trueRatings = trueRatings, centeredRatings = centeredRatings)
-################################
-#Prediction Errors
-rmse_UB <- vector("logical", 8)
-rmse_ens <- vector("logical", 8)
 
 
-no_predictions = 100
-no_pred <- 8
-steps <- c(100, 500, 1000, 1500, 2000, 3000, 4000, 5000)
-for(j in 1:no_pred)
-{
-no_users = steps[j]
-subset = 1:no_users
+############################ITEMBASED########################################
 
-centeredRatings =viewedMoviesMatrix[subset,-1] - rowMeans(viewedMoviesMatrix[subset,-1], na.rm=T)
-trueRatings = viewedMoviesMatrix[subset,-1]
-centeredRatings[is.na(centeredRatings)] = 0
-rated <- which(!is.na(trueRatings), arr.ind = TRUE)
+#subset = 1:100
+# tranpose to make it item based
+viewedMoviesMatrix_IB = t(viewedMoviesMatrix[,-1])
 
-sq_error_UB <- 0
+centeredRatings_IB =viewedMoviesMatrix_IB[, subset] - rowMeans(viewedMoviesMatrix_IB[,subset], na.rm=T)
+trueRatings_IB = viewedMoviesMatrix_IB[,subset]
+centeredRatings_IB[is.na(centeredRatings_IB)] = 0
 
-sq_error_ens <- 0
-for(i in 1:no_predictions)
-{
-  samp_rat = sample(1:nrow(rated), 1)
-  user = as.numeric(rated[samp_rat,][1])
-  movie = as.numeric(rated[samp_rat,][2])
-  
-  ub_preds <- predict_UB(usr = user, mov = movie , neighbourhood = 5 , trueRatings = trueRatings, centeredRatings = centeredRatings)
-  ub_prediction <- ub_preds$prediction
-  ub_actual <- ub_preds$trueRating
-  sq_error_UB <-  sq_error_UB + (ub_prediction - ub_actual)^2
-  
-  MD_prediction <- rat_pred[usr, mov]
-  
-  ens_prediction <- (ub_prediction + MD_prediction) /2
-  sq_error_UB <-  sq_error_ens + (ens_prediction - ub_actual)^2
+
+predict_IB = function(usr, mov, neighbourhood, trueRatings, centeredRatings){
+  # collect the users ratings
   
   
-}
-
-rmse_UB[j] <- sqrt(sq_error_UB/no_users)
-rmse_ens[j] <- sqrt(sq_error_UB / no_users)
-
-
+  # returns a similarity vector 
+  similarity = function(x){
+    return(cosine_sim(as.numeric(temp_masked[mov,]), as.numeric(x))  )
+  }
+  
+  ratings_list = trueRatings[,usr]
+  # mask user's rating
+  temp_masked = centeredRatings
+  temp_masked[mov,usr] = 0
+  
+  sims = apply(temp_masked,1, similarity)
+  # Most similarities are so we need to deal with them by removing them. 
+  temp = cbind(sims,ratings_list)
+  temp = temp[-mov,]
+  temp = temp[order(temp[,1],decreasing = T),]
+  temp = temp[!is.na(temp[,2]),1:2] 
+  
+  
+  # compute predictions based on neighbourhood. If neighbours are less then just use all the data. 
+  if (nrow(temp)<neighbourhood) {
+    prediction= sum(temp[,1]*temp[,2])/sum(temp[,1])
+  }
+  else{
+    prediction = sum(temp[1:neighbourhood,1]* temp[1:neighbourhood,2])  / sum(temp[1:neighbourhood,1])
+  }
+  
+  # return prediction and true rating if it exists
+  if ( is.na(trueRatings[mov,usr])){
+    return(list('prediction' = prediction, 'trueRating' = NA))
+  }
+  else{
+    return(list('prediction' = prediction, 'trueRating' = as.numeric(trueRatings[mov,usr])))
+  }
 }
 
 
@@ -178,12 +174,6 @@ train_accuracy
 
 #####################################################
 
-library(doParallel)
-
-corz = detectCores()
-
-cl <- makeCluster(corz-1)
-registerDoParallel(cl)
 
 no_pred <- 8
 steps <- c(100, 500, 1000, 1500, 2000, 3000, 4000, 5000)
@@ -192,13 +182,13 @@ max_iters <- c(100)
 #Remove row and column ids
 #rownames(rat_mat1) <- seq(1:nrow(rat_mat))
 rat_matB <- rat_matA[,2:ncol(rat_mat)]
-preds = vector("list", 8)
-rmses <- vector("logical", 8)
-steps <- c(100, 500, 1000, 1500, 2000, 3000, 4000, 5000)
-
+preds1 = vector("list", 8)
+rmses1 <- vector("logical", 8)
+steps <- c(100, 500, 1000, 1500, 2000)
+steps2 <- c()
 for(i in 1:8)
 {
-  rat_mat1 <- rat_matB[1:steps[i], ]#For testing purposes
+  rat_mat1 <- viewedMoviesMatrix[1:steps[i], ]#For testing purposes
   
   init = list(
     H0 = matrix(1, nrow = 1, ncol = ncol(rat_mat1)),
@@ -227,19 +217,74 @@ for(i in 1:8)
 
 
 
+######################################################
+################################
+#Prediction Errors
+rmse_UB <- vector("logical", 8)
+rmse_IB <- vector("logical", 8)
+rmse_ens <- vector("logical", 8)
+set.seed(1)
 
-    ######################################################
-
-Ensamble_pred <- function(usr, mov, nghbr, pred_mat, no_users, obs_mat)
+no_predictions = 10
+no_pred <- 5
+steps <- c(100, 500, 1000, 1500, 2000)
+for(j in 1:no_pred)
 {
-  Actual <- rat_mat1[usr, mov] 
-  Usr_based <- predict_UB(usr = usr, mov = mov, trueRatings = obs_mat)
-  Mat_based <- pred_mat(usr, mov)
-  Item_based <- 0
-  ens <- (Usr_based + Mat_based + Item_based) / 3
+  no_users = steps[j]
+  subset = 1:no_users
+  #For User Based
+  centeredRatings =viewedMoviesMatrix[subset,-1] - rowMeans(viewedMoviesMatrix[subset,-1], na.rm=T)
+  trueRatings = viewedMoviesMatrix[subset,-1]
+  centeredRatings[is.na(centeredRatings)] = 0
+  rated <- which(!is.na(trueRatings), arr.ind = TRUE)
   
-  return(ens)
-}
+  sq_error_UB <- 0
+  sq_error_IB <- 0
+  sq_error_ens <- 0
+  #Item Based Predictions
+  viewedMoviesMatrix_IB = t(viewedMoviesMatrix[,-1])
+  
+  centeredRatings_IB =viewedMoviesMatrix_IB[, subset] - rowMeans(viewedMoviesMatrix_IB[,subset], na.rm=T)
+  trueRatings_IB = viewedMoviesMatrix_IB[,subset]
+  centeredRatings_IB[is.na(centeredRatings_IB)] = 0
+  
+  print( paste("step", j) )
+  for(i in 1:no_predictions)
+  {
+    samp_rat = sample(1:nrow(rated), 1)
+    user = as.numeric(rated[samp_rat,][1])
+    movie = as.numeric(rated[samp_rat,][2])
+    
+    ub_preds <- predict_UB(usr = user, mov = movie , neighbourhood = steps[j] , trueRatings = trueRatings, centeredRatings = centeredRatings)
+    ub_prediction <- ub_preds$prediction
+    ub_actual <- ub_preds$trueRating
 
+    
+    ib_preds <- predict_IB(usr = user, mov = movie , neighbourhood = steps[j] , trueRatings = trueRatings_IB, centeredRatings = centeredRatings_IB)
+    ib_prediction <- ib_preds$prediction
+    if(is.nan(ib_prediction) || is.nan(ub_prediction))
+    {
+     print( paste("rejected",i,j))
+      no_users = no_users - 1
+      next
+    }
+
+    sq_error_UB <-  sq_error_UB + (ub_prediction - ub_actual)^2
+    sq_error_IB <-  sq_error_IB + (ib_prediction - ub_actual)^2
+    
+    MD_prediction <- preds[[j]] [user, movie]
+    
+    ens_prediction <- (ub_prediction  + MD_prediction) /2
+    sq_error_ens <-  sq_error_ens + (ens_prediction - ub_actual)^2
+    
+    
+  }
+  
+  rmse_UB[j] <- sqrt(sq_error_UB/no_users)
+  rmse_IB[j] <- sqrt(sq_error_IB/no_users)
+  rmse_ens[j] <- sqrt(sq_error_ens / no_users)
+  print(paste("Calculated RMSEs", rmse_ens[j]) )
+  
+}
 
 
