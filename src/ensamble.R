@@ -36,15 +36,24 @@ rownames(rat_mat1) <- seq(1:nrow(rat_mat))
 
 viewedMoviesMatrix <- rat_mat1
 
-####################################################################
-subset = 1:10
+############################USERBASED########################################
+subset = 1:1000
+set.seed(1)
+#  ------- subsetting a smaller movie databse -------- -------- -------- 
+movie_subset = sample(1:13000,1000)
+
+viewedMoviesMatrix = ratings%>%  subset(movieId %in% movie_subset)%>%
+  complete(userId, movieId) %>% 
+  select(userId, movieId, rating) %>% 
+  spread(key = movieId, value = rating) 
+# --------- -------- -------- -------- -------- 
 
 centeredRatings =viewedMoviesMatrix[subset,-1] - rowMeans(viewedMoviesMatrix[subset,-1], na.rm=T)
 trueRatings = viewedMoviesMatrix[subset,-1]
 centeredRatings[is.na(centeredRatings)] = 0
 
 
-predict_UB = function(usr, mov, neighbourhood, trueRatings){
+predict_UB = function(usr, mov, neighbourhood, trueRatings, centeredRatings){
   # collect the users ratings
   #ratings_list = trueRatings[-usr,mov]
   ratings_list = trueRatings[,mov]
@@ -89,6 +98,70 @@ predict_UB = function(usr, mov, neighbourhood, trueRatings){
   
   
 }#End UserBased PredictFunction
+
+
+# userbased Time test
+start_time = Sys.time()
+predict_UB(4,2,5,trueRatings,centeredRatings)
+end_time = Sys.time()
+(end_time - start_time)
+
+############################ITEMBASED########################################
+
+#subset = 1:100
+# tranpose to make it item based
+viewedMoviesMatrix_IB = t(viewedMoviesMatrix[,-1])
+
+centeredRatings_IB =viewedMoviesMatrix_IB[, subset] - rowMeans(viewedMoviesMatrix_IB[,subset], na.rm=T)
+trueRatings_IB = viewedMoviesMatrix_IB[,subset]
+centeredRatings_IB[is.na(centeredRatings_IB)] = 0
+
+
+predict_IB = function(usr, mov, neighbourhood, trueRatings, centeredRatings){
+  # collect the users ratings
+  
+  
+  # returns a similarity vector 
+  similarity = function(x){
+    return(cosine(as.numeric(temp_masked[mov,]), as.numeric(x))  )
+  }
+  
+  ratings_list = trueRatings[,usr]
+  # mask user's rating
+  temp_masked = centeredRatings
+  temp_masked[mov,usr] = 0
+  
+  sims = apply(temp_masked,1, similarity)
+  # Most similarities are so we need to deal with them by removing them. 
+  temp = cbind(sims,ratings_list)
+  temp = temp[-mov,]
+  temp = temp[order(temp[,1],decreasing = T),]
+  temp = temp[!is.na(temp[,2]),1:2] 
+  
+  
+  # compute predictions based on neighbourhood. If neighbours are less then just use all the data. 
+  if (nrow(temp)<neighbourhood) {
+    prediction= sum(temp[,1]*temp[,2])/sum(temp[,1])
+  }
+  else{
+    prediction = sum(temp[1:neighbourhood,1]* temp[1:neighbourhood,2])  / sum(temp[1:neighbourhood,1])
+  }
+  
+  # return prediction and true rating if it exists
+  if ( is.na(trueRatings[mov,usr])){
+    return(list('prediction' = prediction, 'trueRating' = NA))
+  }
+  else{
+    return(list('prediction' = prediction, 'trueRating' = as.numeric(trueRatings[mov,usr])))
+  }
+}
+
+# itembased Time test
+start_time = Sys.time()
+predict_UB(6,3,5,trueRatings,centeredRatings)
+predict_IB(6,3,5,trueRatings_IB,centeredRatings_IB)
+end_time = Sys.time()
+(end_time - start_time)
 
 #################################
 ######Matrix Decomp##############
