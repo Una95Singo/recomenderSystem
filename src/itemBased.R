@@ -93,6 +93,7 @@ predict = function(usr, mov, neighbourhood, trueRatings, centeredRatings){
 }
 
 
+<<<<<<< HEAD
 sub = viewed[1:20,-1]
 
 non_NA_indices= which(!is.na(sub),arr.ind = T) 
@@ -131,3 +132,5 @@ for (i in non_NA_indices_sample){
 
 
 
+=======
+>>>>>>> 4f61a16e92be6a9e505902797efe6557453c9ec6
