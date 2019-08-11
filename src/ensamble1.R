@@ -14,7 +14,6 @@ cosine_sim <- function(a, b){crossprod(a, b) / sqrt(crossprod(a) * crossprod(b))
 
 setwd("C:/Users/seray/2019 Work/DSFI/Assignment 1")
 load("recommender.RData")
-load("V1.RData")
 #ratings <- ratings[1:10000,]
 M_rats <- data.frame(cbind(ratings$userId, ratings$movieId, ratings$rating))
 colnames(M_rats) <- c("userId", "movieId", "rating")
@@ -40,6 +39,13 @@ viewedMoviesMatrix = ratings%>%
   complete(userId, movieId) %>% 
   select(userId, movieId, rating) %>% 
   spread(key = movieId, value = rating)
+
+# tranpose to make it item based
+viewedMoviesMatrix_IB = t(viewedMoviesMatrix[,-1])
+
+centeredRatings_IB =viewedMoviesMatrix_IB[, subset] - rowMeans(viewedMoviesMatrix_IB[,subset], na.rm=T)
+trueRatings_IB = viewedMoviesMatrix_IB[,subset]
+centeredRatings_IB[is.na(centeredRatings_IB)] = 0
 
 ####################################################################
 
@@ -67,6 +73,7 @@ predict_UB = function(usr, mov, neighbourhood, trueRatings, centeredRatings){
   temp = temp[-usr,]
   temp = temp[order(temp[,1],decreasing = T),]
   temp = temp[!is.na(temp[,2]),1:2] 
+  
   
   # if temp only has one row.
   if (is.null(nrow(temp))){
