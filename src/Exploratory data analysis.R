@@ -25,7 +25,6 @@ headViewed <- head(viewed[,1:15],15)
 
 
 
-col
 #############Summary of ratings##########
 summary(rating)
 var(rating) 
