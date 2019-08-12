@@ -1,5 +1,8 @@
-# user based recomender system
-# Una Singo 24 July 2019
+# Recomender systems
+# Una Singo
+# Serayen Govender
+# Kaluba Chikonde
+# 24 July 2019
 library(dplyr)
 library(tidyr)
 library(NNLM)
@@ -12,22 +15,6 @@ set.seed(1)
 
 # function calculating cosine similarity
 cosine_sim <- function(a, b){crossprod(a, b) / sqrt(crossprod(a) * crossprod(b))}
-
-setwd("C:/Users/seray/2019 Work/DSFI/Assignment 1")
-load("recommender.RData")
-#ratings <- ratings[1:10000,]
-M_rats <- data.frame(cbind(ratings$userId, ratings$movieId, ratings$rating))
-colnames(M_rats) <- c("userId", "movieId", "rating")
-ratings_all <- complete(M_rats, userId, movieId)
-
-# reshape from long to wide format for use with NNLM package
-rat_matA <- ratings_all %>% spread(key = movieId, value = rating) %>% as.matrix()
-
-rat_mat <- rat_matA[1:5000, ]#For testing purposes
-
-#Remove row and column ids
-rat_mat1 <- rat_mat[,2:ncol(rat_mat)]
-rownames(rat_mat1) <- seq(1:nrow(rat_mat))
 
 movie_subset = sample(1:13000,5000, replace = FALSE)
 ratings1 <- ratings[ratings$movieId<1050 , ]
@@ -173,6 +160,7 @@ decomp <- nnmf(A = trueRatings,
                max.iter = 500)
 )
 # results
+#prediction matrix
 rat_pred <- decomp$W %*% decomp$H  # includes bias terms in it (see ?nnmf)
 max(rat_pred)
 mse = tail(decomp$mse, n = 1)
@@ -188,19 +176,16 @@ train_accuracy
 #####################################################
 
 
+#number of user permutations
 no_pred <- 5
-steps <- c(100, 500, 1000, 1500, 2000)
-max_iters <- c(100)
-  
-#Remove row and column ids
-#rownames(rat_mat1) <- seq(1:nrow(rat_mat))
-rat_matB <- viewedMoviesMatrix[,-1]
+#Prediction matrices and mses for different numbers of users
 preds1 = vector("list", 5)
 rmses1 <- vector("logical", 5)
+#Number of users for testing
 steps <- c(100, 500, 1000, 1500, 2000)
-for(i in 1:)
+for(i in 1:no_pred)
 {
-  rat_mat1 <- as.matrix(viewedMoviesMatrix[1:steps[i], -1])#For testing purposes
+  rat_mat1 <- as.matrix(viewedMoviesMatrix[1:steps[i], -1])
   
   init = list(
     H0 = matrix(1, nrow = 1, ncol = ncol(rat_mat1)),
@@ -218,7 +203,7 @@ for(i in 1:)
                    max.iter = 1000)
   
   # results
-  rat_pred <- decomp$W %*% decomp$H  # includes bias terms in it (see ?nnmf)
+  rat_pred <- decomp$W %*% decomp$H
   mse = tail(decomp$mse, n = 1)
   preds1[[i]] = rat_pred
   rmses1[i] = sqrt(mse)
@@ -232,14 +217,14 @@ for(i in 1:)
 ######################################################
 ################################
 #Prediction Errors
+
+#RMSEs for each prediction method
 rmse_UB <- vector("logical", 5)
 rmse_IB <- vector("logical", 5)
 rmse_ens <- vector("logical", 5)
+
 set.seed(1)
-IB_pred_mat <- matrix(0, 10, 5)
-UB_pred_mat <- matrix(0, 10, 5)
-IB_actual_mat <- matrix(0, 10, 5)
-UB_actual_mat <- matrix(0, 10, 5)
+
 no_predictions = 10
 no_pred <- 5
 steps <- c(100, 500, 1000, 1500, 2000)
@@ -251,52 +236,54 @@ for(j in 1:no_pred)
   centeredRatings =viewedMoviesMatrix[subset,-1] - rowMeans(viewedMoviesMatrix[subset,-1], na.rm=T)
   trueRatings = viewedMoviesMatrix[subset,-1]
   centeredRatings[is.na(centeredRatings)] = 0
+  #indexes of rated movies
   rated <- which(!is.na(trueRatings), arr.ind = TRUE)
-  
+  #sum square Errors at each number of users
   sq_error_UB <- 0
   sq_error_IB <- 0
   sq_error_ens <- 0
-  #Item Based Predictions
+  #Item Based Predictions Matrix
   viewedMoviesMatrix_IB = t(viewedMoviesMatrix[,-1])
   
   centeredRatings_IB =viewedMoviesMatrix_IB[, subset] - rowMeans(viewedMoviesMatrix_IB[,subset], na.rm=T)
   trueRatings_IB = viewedMoviesMatrix_IB[,subset]
   centeredRatings_IB[is.na(centeredRatings_IB)] = 0
   
-  print( paste("step", j) )
+  #at each number of users do no_pred predictions to calculate errors
   for(i in 1:no_predictions)
   {
+    #Sample indexes of ratings for testing
     samp_rat = sample(1:nrow(rated), 1)
     user = as.numeric(rated[samp_rat,][1])
     movie = as.numeric(rated[samp_rat,][2])
+    #user based predictions
     ub_preds <- predict_UB(usr = user, mov = movie , neighbourhood = steps[j] , trueRatings = trueRatings, centeredRatings = centeredRatings)
     ub_prediction <- ub_preds$prediction
     ub_actual <- viewedMoviesMatrix[user, movie + 1]
-    UB_actual_mat[i,j] <- as.numeric(ub_actual)
-
+    #item based predictions
     ib_preds <- predict_IB(usr = user, mov = movie , neighbourhood = steps[j] , trueRatings = trueRatings_IB, centeredRatings = centeredRatings_IB)
     ib_prediction <- ib_preds$prediction
+    #dealing with nans if returned
     if(is.nan(ib_prediction) || is.nan(ub_prediction))
     {
      print( paste("rejected",i,j))
       no_users = no_users - 1
       next
     }
-    IB_pred_mat[i,j] <- ib_prediction
-    UB_pred_mat[i,j] <- ub_prediction
+    #calculation of squared erros at number of users
     sq_error_UB <-  sq_error_UB + (ub_prediction - ub_actual)^2
     sq_error_IB <-  sq_error_IB + (ib_prediction - ub_actual)^2
-    
+    #matrix decomp predictions
     MD_prediction <- preds1[[j]] [user, movie]
     
+    #ensemble prediction
     ens_prediction <- (ub_prediction  + ib_prediction + MD_prediction) /2
+    #Sqaure errors of ensemble
     sq_error_ens <-  sq_error_ens + (ens_prediction - ub_actual)^2
     
     
   }
-  print(IB_pred_mat[,j])
-  print(UB_pred_mat[,j])
-  print(UB_actual_mat[,j])
+  #Computing RMSEs
   rmse_UB[j] <- sqrt(sq_error_UB/no_users)
   rmse_IB[j] <- sqrt(sq_error_IB/no_users)
   rmse_ens[j] <- sqrt(sq_error_ens / no_users)
@@ -305,6 +292,7 @@ for(j in 1:no_pred)
 }
 
 
+#plotting RMSEs
 plot(steps, rmses1, xlab = "Number of users", ylab = "RMSE", main = "RMSE by Users", type = "l")
 
 plot(steps, rmse_UB , xlab = "Number of users", ylab = "RMSE", main = "RMSE by Users", type = "l")
